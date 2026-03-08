@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+<title>Bully Platform 2D</title>
+<link rel="icon" type="image/png" href="icon.png">
+<style>
+
+body{
+margin:0;
+background:#a00000;
+font-family:Arial;
+overflow:hidden;
+}
+
+/* grand panneau bleu */
+
+#panel{
+
+position:absolute;
+top:12%;
+left:7%;
+width:86%;
+height:76%;
+
+background:linear-gradient(#6f9ae0,#5c85d4);
+
+}
+
+/* titre */
+
+h1{
+
+text-align:center;
+font-size:70px;
+margin-top:60px;
+
+}
+
+/* bouton commencer */
+
+#start{
+
+position:absolute;
+left:15%;
+top:45%;
+
+width:240px;
+height:120px;
+
+background:linear-gradient(#d8d8d8,#7fa0d9);
+
+border:none;
+font-size:22px;
+cursor:pointer;
+
+}
+
+/* menu niveaux */
+
+#levels{
+
+position:absolute;
+right:20%;
+top:30%;
+
+display:flex;
+flex-direction:column;
+
+width:130px;
+
+}
+
+#levels button{
+
+height:70px;
+border:none;
+cursor:pointer;
+font-size:18px;
+
+}
+
+.n1{background:linear-gradient(#eeeeee,#9db5d7);}
+.n2{background:linear-gradient(#cfdff2,#6d96cc);}
+.n3{background:linear-gradient(#6d96cc,#003cff);}
+.n4{background:linear-gradient(#003cff,#0000aa);}
+.nb{background:linear-gradient(#0000aa,#000055);color:white;}
+
+/* petits blocs décor */
+
+.block{
+position:absolute;
+}
+
+.green{background:#0bb050;}
+.blue{background:#176fb1;}
+.purple{background:#7a003a;}
+
+</style>
+
+</head>
+
+<body>
+
+<audio autoplay loop>
+<source src="music_accueil.mp3" type="audio/mp3">
+</audio>
+
+<div id="panel">
+
+<h1>Bully platform 2D</h1>
+
+<h2 style="
+  position:absolute;
+  top:8px;
+  left:12px;
+  margin:0;
+  font-style:Gras;
+  font-family:Forte;
+  font-size:50px;
+">
+  <span style="color:#0077ff">B</span><span style="color:#005702">u</span><span style="color:#ebff31">b</span><span style="color:#36a6ff">b</span><span style="color:#ff5d00">l</span><span style="color:#3f3f3f">e</span><span style="color:#000000"> inc.</span>
+</h2>
+
+<button id="start" onclick="window.location.href='niv_1.html'">
+Commencer
+</button>
+
+<div id="levels">
+
+<button class="n1" onclick="window.location.href='niv_1.html'">Niv.1</button>
+<button class="n2" onclick="window.location.href='niv_2.html'">Niv.2</button>
+<button class="n3" onclick="goLevel(3)">Niv.3</button>
+<button class="n4" onclick="goLevel(4)">Niv.4</button>
+<button class="nb" onclick="goLevel('B')">Niv.B</button>
+
+</div>
+
+</div>
+
+<!-- décor -->
+
+<div class="block green" style="left:0;top:35%;width:260px;height:60px;"></div>
+<div class="block green" style="right:0;top:60%;width:220px;height:70px;"></div>
+<div class="block green" style="top:88%;left:40%;width:280px;height:70px;"></div>
+
+<div class="block blue" style="left:40px;top:50px;width:100px;height:100px;"></div>
+<div class="block blue" style="right:-10px;top:90px;width:100px;height:100px;"></div>
+<div class="block blue" style="right:0;top:55%;width:80px;height:100px;"></div>
+
+<div class="block purple" style="top:0;left:35%;width:110px;height:80px;"></div>
+<div class="block purple" style="bottom:0;left:20px;width:100px;height:100px;"></div>
+
+
+<script>
+
+/* navigation vers niveaux */
+
+function goLevel(n){
+
+if(n=="B"){
+window.location.href="niveauB.html";
+}
+else{
+window.location.href="niveau"+n+".html";
+}
+
+}
+
+</script>
+
+<canvas id="bullyDeco" style="position:absolute;top:0;left:0;pointer-events:none;"></canvas>
+
+<script>
+const c = document.getElementById("bullyDeco");
+const ctx2 = c.getContext("2d");
+c.width = window.innerWidth;
+c.height = window.innerHeight;
+
+let b = {x:c.width/2 - 20, y:c.height*0.88-60, width:40, height:40, dx:0, dy:0, speed:5, gravity:0.5, jump:-12, onGround:false};
+
+let keys = {};
+document.addEventListener("keydown", e=>{ keys[e.key.toLowerCase()] = true; });
+document.addEventListener("keyup",   e=>{ keys[e.key.toLowerCase()] = false; });
+
+function drawBully(){
+  ctx2.fillStyle="#1565C0";
+  ctx2.fillRect(b.x, b.y, b.width, b.height);
+}
+
+function loop(){
+  ctx2.clearRect(0,0,c.width,c.height);
+
+  if(keys["arrowright"]) b.dx = b.speed;
+  else if(keys["arrowleft"]) b.dx = -b.speed;
+  else b.dx = 0;
+
+  if((keys["arrowup"] || keys[" "]) && b.onGround){ b.dy = b.jump; b.onGround = false; }
+
+  b.dy += b.gravity;
+  b.x += b.dx;
+  b.y += b.dy;
+
+  if(b.y + b.height >= c.height * 0.88){ b.y = c.height*0.88-b.height; b.dy=0; b.onGround=true; }
+  if(b.x < c.width * 0.07) b.x = c.width * 0.07;
+  if(b.x + b.width > c.width * 0.93) b.x = c.width * 0.93 - b.width;
+
+  drawBully();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+
+</body>
+</html>

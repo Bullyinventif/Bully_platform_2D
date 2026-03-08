@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<title>Bully Platformer</title>
+<style>
+html,body{ margin:0; padding:0; overflow:hidden; background:#87CEEB; }
+canvas{ display:block; }
+#menuFin{
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  background:white; padding:40px; border-radius:10px;
+  text-align:center; display:none; font-family:Arial;
+}
+#menuFin button{
+  display:block; margin:10px auto;
+  padding:10px 20px; font-size:16px; cursor:pointer;
+}
+</style>
+</head>
+<body>
+
+<audio autoplay loop>
+  <source src="music_niv_1.mp3" type="audio/mp3">
+</audio>  
+
+<button onclick="goHome()" style="
+  position:absolute;
+  top:10px;
+  left:10px;
+  padding:8px 16px;
+  font-size:16px;
+  cursor:pointer;
+">🏠 Accueil</button>
+
+<canvas id="game"></canvas>
+
+<div id="menuFin">
+  <h1 id="titreMenu">Niveau terminé ! 🥳</h1>
+  <button id="btnSuivant" onclick="nextLevel()">Niveau suivant</button>
+  <button onclick="restartLevel()">Recommencer</button>
+  <button onclick="goHome()">Accueil</button>
+</div>
+
+<script>
+
+const canvas = document.getElementById("game");
+const ctx    = canvas.getContext("2d");
+canvas.width  = window.innerWidth;
+canvas.height = window.innerHeight;
+const W = canvas.width;
+const H = canvas.height;
+
+// Référence image originale : 1456 x 816
+const rx = W / 1456;
+const ry = H / 816;
+function px(x){ return x * rx; }
+function py(y){ return y * ry; }
+function pw(w){ return w * rx; }
+function ph(h){ return h * ry; }
+
+let bully = {
+  x:px(85), y:py(700),
+  width:pw(36), height:ph(36),
+  dx:0, dy:0,
+  speed:5, gravity:0.5, jump:-9,
+  onGround:false
+};
+
+let platforms = [
+
+  // SOL
+  {x:0,        y:py(740), width:W,       height:ph(100), color:"#2e7d32"},
+
+  // GAUCHE — grande plateforme avec la porte
+  {x:px(190),  y:py(416), width:pw(175), height:ph(18), color:"#388e3c"},
+
+  // HAUT-GAUCHE — grande plateforme longue
+  {x:px(306),  y:py(245), width:pw(220), height:ph(18), color:"#388e3c"},
+
+  // CENTRE — grande plateforme
+  {x:px(478),  y:py(318), width:pw(210), height:ph(18), color:"#388e3c"},
+
+  // CENTRE — plateforme sous bloc jaune A (téléport gauche)
+  {x:px(585),  y:py(457), width:pw(165), height:ph(18), color:"#388e3c"},
+
+  // CENTRE-DROIT — grande plateforme sous ennemi haut
+  {x:px(695),  y:py(277), width:pw(220), height:ph(18), color:"#388e3c"},
+
+  // CENTRE-DROIT — grande plateforme milieu
+  {x:px(762),  y:py(424), width:pw(152), height:ph(18), color:"#388e3c"},
+
+  // DROITE — grande plateforme haute (longue)
+  {x:px(948),  y:py(326), width:pw(322), height:ph(18), color:"#388e3c"},
+
+  // DROITE — plateforme sous bloc jaune B (téléport droit)
+  {x:px(1062), y:py(424), width:pw(133), height:ph(18), color:"#388e3c"},
+
+  // DROITE — 3 petites en colonne (tout à droite)
+  {x:px(1210), y:py(326), width:pw(65),  height:ph(13), color:"#66bb6a"},
+  {x:px(1210), y:py(376), width:pw(65),  height:ph(13), color:"#66bb6a"},
+  {x:px(1210), y:py(426), width:pw(65),  height:ph(13), color:"#66bb6a"},
+
+  // DROITE — 2 petites milieu (en colonne)
+  {x:px(960),  y:py(473), width:pw(58),  height:ph(13), color:"#66bb6a"},
+  {x:px(960),  y:py(531), width:pw(58),  height:ph(13), color:"#66bb6a"},
+
+  // BAS-DROITE — grande plateforme (longue)
+  {x:px(900),  y:py(570), width:pw(352), height:ph(18), color:"#388e3c"},
+
+  // BAS-CENTRE — grande plateforme (ennemi bas dessus)
+  {x:px(450),  y:py(650), width:pw(192), height:ph(18), color:"#388e3c"},
+
+  // BAS-CENTRE — 2 petites
+  {x:px(698),  y:py(612), width:pw(65),  height:ph(13), color:"#66bb6a"},
+  {x:px(812),  y:py(612), width:pw(65),  height:ph(13), color:"#66bb6a"},
+
+  // BAS-GAUCHE — grande plateforme (escalier bas)
+  {x:px(200),  y:py(700), width:pw(200), height:ph(20), color:"#388e3c"},
+
+];
+
+let door = {
+  x:px(292), y:py(348),
+  width:pw(46), height:ph(68)
+};
+
+let enemies = [
+  {x:px(845), y:py(218), width:pw(36), height:ph(36), dx:2.2, minX:px(695), maxX:px(915), alive:true},
+  {x:px(545), y:py(568), width:pw(36), height:ph(36), dx:1.8, minX:px(466), maxX:px(650), alive:true},
+];
+
+let keys = {};
+document.addEventListener("keydown", e=>{ keys[e.key.toLowerCase()] = true; });
+document.addEventListener("keyup",   e=>{ keys[e.key.toLowerCase()] = false; });
+window.addEventListener("blur", ()=>{ keys = {}; });
+
+function collision(a,b){
+  return(
+    a.x < b.x+b.width  &&
+    a.x+a.width  > b.x &&
+    a.y < b.y+b.height &&
+    a.y+a.height > b.y
+  );
+}
+
+function resetPlayer(){
+  bully.x = px(85);
+  bully.y = py(700);
+  bully.dx = 0;
+  bully.dy = 0;
+}
+
+function update(){
+
+  if(keys["d"] || keys["arrowright"])     bully.dx =  bully.speed;
+  else if(keys["q"] || keys["arrowleft"]) bully.dx = -bully.speed;
+  else bully.dx = 0;
+
+  if((keys["z"] || keys["arrowup"] || keys[" "]) && bully.onGround){
+    bully.dy = bully.jump;
+    bully.onGround = false;
+  }
+
+  bully.dy += bully.gravity;
+  bully.x  += bully.dx;
+  bully.y  += bully.dy;
+
+  bully.onGround = false;
+
+  for(let p of platforms){
+    if(collision(bully,p) && bully.dy >= 0){
+      bully.y = p.y - bully.height;
+      bully.dy = 0;
+      bully.onGround = true;
+    }
+  }
+
+  for(let e of enemies){
+    if(!e.alive) continue;
+    e.x += e.dx;
+    if(e.x <= e.minX || e.x+e.width >= e.maxX) e.dx = -e.dx;
+    if(collision(bully,e)){
+      if(bully.dy > 0 && bully.y+bully.height < e.y+e.height*0.6){
+        e.alive = false;
+        bully.dy = -8;
+      } else {
+        resetPlayer();
+      }
+    }
+  }
+
+  if(bully.y > H+50) resetPlayer();
+
+  if(collision(bully,door)){
+    document.getElementById("menuFin").style.display="block";
+  }
+
+}
+
+function draw(){
+
+  ctx.clearRect(0,0,W,H);
+
+  ctx.fillStyle="#87CEEB";
+  ctx.fillRect(0,0,W,H);
+
+  for(let p of platforms){
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x, p.y, p.width, p.height);
+  }
+
+  ctx.fillStyle="#4e2a04";
+  ctx.fillRect(door.x, door.y, door.width, door.height);
+
+  for(let e of enemies){
+    if(!e.alive) continue;
+    ctx.fillStyle="#e53935";
+    ctx.fillRect(e.x, e.y, e.width, e.height);
+  }
+
+  ctx.fillStyle="#1565C0";
+  ctx.fillRect(bully.x, bully.y, bully.width, bully.height);
+
+}
+
+function gameLoop(){
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+
+function restartLevel(){
+  resetPlayer();
+  for(let e of enemies) e.alive = true;
+  document.getElementById("menuFin").style.display="none";
+}
+
+function nextLevel(){
+  window.location.href = "niv_2.html";
+}
+
+function goHome(){
+  window.location.href = "accueil.html";
+}
+
+</script>
+</body>
+</html>
