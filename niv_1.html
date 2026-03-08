@@ -43,6 +43,9 @@ canvas{ display:block; }
 
 <script>
 
+const bullyImg = new Image();
+bullyImg.src = "bully_sprite_1.png"; // ton fichier image
+
 const canvas = document.getElementById("game");
 const ctx    = canvas.getContext("2d");
 canvas.width  = window.innerWidth;
@@ -218,9 +221,8 @@ function draw(){
     ctx.fillRect(e.x, e.y, e.width, e.height);
   }
 
-  ctx.fillStyle="#1565C0";
-  ctx.fillRect(bully.x, bully.y, bully.width, bully.height);
-
+//Bully img
+ctx.drawImage(bullyImg, bully.x, bully.y -30, bully.width * 2, bully.height * 2);
 }
 
 function gameLoop(){

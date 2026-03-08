@@ -183,10 +183,14 @@ let keys = {};
 document.addEventListener("keydown", e=>{ keys[e.key.toLowerCase()] = true; });
 document.addEventListener("keyup",   e=>{ keys[e.key.toLowerCase()] = false; });
 
+//Bully img
 function drawBully(){
-  ctx2.fillStyle="#1565C0";
-  ctx2.fillRect(b.x, b.y, b.width, b.height);
+ ctx2.drawImage(bullyImg, b.x, b.y -20, b.width * 2, b.height * 2);
 }
+
+const bullyImg = new Image();
+bullyImg.src = "bully_sprite_1.png";
+
 
 function loop(){
   ctx2.clearRect(0,0,c.width,c.height);
