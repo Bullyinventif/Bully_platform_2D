@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<title>Bully Platformer - Niveau 2</title>
+<style>
+html,body{ margin:0; padding:0; overflow:hidden; background:#87CEEB; }
+canvas{ display:block; }
+#menuFin{
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  background:white; padding:40px; border-radius:10px;
+  text-align:center; display:none; font-family:Arial;
+}
+#menuFin button{
+  display:block; margin:10px auto;
+  padding:10px 20px; font-size:16px; cursor:pointer;
+}
+</style>
+</head>
+<body>
+
+<audio autoplay loop>
+  <source src="music_niv_2.mp3" type="audio/mp3">
+</audio>
+
+<button onclick="goHome()" style="
+  position:absolute; top:10px; left:10px;
+  padding:8px 16px; font-size:16px; cursor:pointer; z-index:10;
+">🏠 Accueil</button>
+
+<canvas id="game"></canvas>
+
+<div id="menuFin">
+  <h1 id="titreMenu">Niveau terminé ! 🥳</h1>
+  <button id="btnSuivant" onclick="nextLevel()">Niveau suivant</button>
+  <button onclick="restartLevel()">Recommencer</button>
+  <button onclick="goHome()">Accueil</button>
+</div>
+
+<script>
+
+const canvas = document.getElementById("game");
+const ctx    = canvas.getContext("2d");
+canvas.width  = window.innerWidth;
+canvas.height = window.innerHeight;
+const W = canvas.width;
+const H = canvas.height;
+
+const rx = W / 1456;
+const ry = H / 816;
+function px(x){ return x * rx; }
+function py(y){ return y * ry; }
+function pw(w){ return w * rx; }
+function ph(h){ return h * ry; }
+
+let bully = {
+  x:px(700), y:py(680),
+  width:pw(36), height:ph(36),
+  dx:0, dy:0,
+  speed:5, gravity:0.5, jump:-10,
+  onGround:false
+};
+
+// type "solid"    = bloque tous les côtés
+// type "oneway"   = traversable par le bas, solide par le dessus
+//                   flèche bas ou S pour redescendre
+// type "disappear"= disparaît au toucher
+
+let platforms = [
+
+  // SOL
+  {x:0, y:py(775), width:W, height:ph(41), color:"#2e7d32", type:"solid"},
+
+  // PLATEFORME SPAWN
+  {x:px(470), y:py(710), width:pw(500), height:ph(18), color:"#388e3c", type:"solid"},
+
+  // PLATEFORME BAS DROITE
+  {x:px(1000), y:py(670), width:pw(195), height:ph(18), color:"#388e3c", type:"solid"},
+
+  // PLATEFORME BAS GAUCHE
+  {x:px(235), y:py(652), width:pw(195), height:ph(18), color:"#388e3c", type:"solid"},
+
+  // CHEMIN DROITE - petites oneway
+  {x:px(960), y:py(195), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  {x:px(840), y:py(195), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  {x:px(720), y:py(195), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  {x:px(600), y:py(195), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  {x:px(840), y:py(245), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  {x:px(840), y:py(295), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  {x:px(960), y:py(300), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  {x:px(1080), y:py(300), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  // Milieu - 3 petites en colonne
+  {x:px(570), y:py(315), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  {x:px(570), y:py(365), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  {x:px(570), y:py(415), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+
+  // 2 BLOCS ROSES
+  {x:px(300), y:py(463), width:pw(68), height:ph(13), color:"#ff80c0", type:"disappear", alive:true},
+  {x:px(420), y:py(440), width:pw(68), height:ph(13), color:"#ff80c0", type:"disappear", alive:true},
+
+  // COLONNE VERTICALE DROITE
+  {x:px(1200), y:py(700), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  {x:px(1200), y:py(620), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  {x:px(1200), y:py(540), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  {x:px(1200), y:py(460), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  {x:px(1200), y:py(380), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  {x:px(1200), y:py(300), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+
+  // PORTE EN HAUT GAUCHE - grande plateforme
+  {x:px(265), y:py(115), width:pw(190), height:ph(18), color:"#388e3c", type:"solid"},
+
+  // ESCALIER GAUCHE vers la porte (chemin secondaire difficile)
+  {x:px(200), y:py(120), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  {x:px(200), y:py(170), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  {x:px(200), y:py(220), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  {x:px(200), y:py(272), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  {x:px(310), y:py(272), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  {x:px(420), y:py(272), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  {x:px(200), y:py(460), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  {x:px(75),  y:py(530), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  {x:px(75),  y:py(580), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+  {x:px(75),  y:py(630), width:pw(68), height:ph(13), color:"#66bb6a", type:"oneway"},
+
+];
+
+let door = {
+  x:px(370), y:py(47),
+  width:pw(46), height:ph(68)
+};
+
+let enemies = [
+  // Ennemi sur le toit du château
+  {x:px(900), y:py(250), width:pw(36), height:ph(36), dx:4, minX:px(720), maxX:px(1220), alive:true},
+];
+
+let keys = {};
+document.addEventListener("keydown", e=>{ keys[e.key.toLowerCase()] = true; });
+document.addEventListener("keyup",   e=>{ keys[e.key.toLowerCase()] = false; });
+window.addEventListener("blur", ()=>{ keys = {}; });
+
+function collision(a,b){
+  return(
+    a.x < b.x+b.width  &&
+    a.x+a.width  > b.x &&
+    a.y < b.y+b.height &&
+    a.y+a.height > b.y
+  );
+}
+
+function resetPlayer(){
+  bully.x = px(700);
+  bully.y = py(680);
+  bully.dx = 0;
+  bully.dy = 0;
+}
+
+function update(){
+
+  if(keys["d"] || keys["arrowright"])     bully.dx =  bully.speed;
+  else if(keys["q"] || keys["arrowleft"]) bully.dx = -bully.speed;
+  else bully.dx = 0;
+
+  if((keys["z"] || keys["arrowup"] || keys[" "]) && bully.onGround){
+    bully.dy = bully.jump;
+    bully.onGround = false;
+  }
+
+  bully.dy += bully.gravity;
+  bully.x  += bully.dx;
+  bully.y  += bully.dy;
+
+  bully.onGround = false;
+
+  for(let p of platforms){
+
+    if(p.type === "disappear"){
+      if(!p.alive) continue;
+      // Détruire au moindre contact
+      if(collision(bully, p)){
+        p.alive = false;
+        // Si Bully était dessus, on le laisse tomber normalement
+        continue;
+      }
+    }
+
+    if(p.type === "oneway"){
+      if(
+        collision(bully, p) &&
+        bully.dy >= 0 &&
+        bully.y + bully.height - bully.dy <= p.y + 8 &&
+        !keys["arrowdown"] && !keys["s"]
+      ){
+        bully.y = p.y - bully.height;
+        bully.dy = 0;
+        bully.onGround = true;
+      }
+    } else {
+      // Solide - dessus
+      if(collision(bully, p) && bully.dy >= 0 && bully.y + bully.height - bully.dy <= p.y + 8){
+        bully.y = p.y - bully.height;
+        bully.dy = 0;
+        bully.onGround = true;
+      }
+      // Solide - dessous
+      else if(collision(bully, p) && bully.dy < 0 && bully.y - bully.dy >= p.y + p.height - 8){
+        bully.dy = 0;
+        bully.y = p.y + p.height;
+      }
+      // Solide - côtés
+      else if(collision(bully, p)){
+        if(bully.dx > 0) bully.x = p.x - bully.width;
+        else if(bully.dx < 0) bully.x = p.x + p.width;
+        bully.dx = 0;
+      }
+    }
+
+  }
+
+  for(let e of enemies){
+    if(!e.alive) continue;
+    e.x += e.dx;
+    if(e.x <= e.minX || e.x+e.width >= e.maxX) e.dx = -e.dx;
+    if(collision(bully, e)){
+      if(bully.dy > 0 && bully.y+bully.height < e.y+e.height*0.6){
+        e.alive = false;
+        bully.dy = -8;
+      } else {
+        resetPlayer();
+      }
+    }
+  }
+
+  if(bully.y > H+50) resetPlayer();
+
+  if(collision(bully, door)){
+    document.getElementById("menuFin").style.display="block";
+  }
+
+}
+
+function draw(){
+
+  ctx.clearRect(0,0,W,H);
+
+  ctx.fillStyle="#87CEEB";
+  ctx.fillRect(0,0,W,H);
+
+  for(let p of platforms){
+    if(p.type === "disappear" && !p.alive) continue;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x, p.y, p.width, p.height);
+  }
+
+  ctx.fillStyle="#4e2a04";
+  ctx.fillRect(door.x, door.y, door.width, door.height);
+
+  for(let e of enemies){
+    if(!e.alive) continue;
+    ctx.fillStyle="#e53935";
+    ctx.fillRect(e.x, e.y, e.width, e.height);
+  }
+
+  ctx.fillStyle="#1565C0";
+  ctx.fillRect(bully.x, bully.y, bully.width, bully.height);
+
+}
+
+function gameLoop(){
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+
+function restartLevel(){
+  resetPlayer();
+  for(let e of enemies) e.alive = true;
+  for(let p of platforms) if(p.type==="disappear") p.alive = true;
+  document.getElementById("menuFin").style.display="none";
+}
+
+function nextLevel(){
+  window.location.href = "niv_3.html";
+}
+
+function goHome(){
+  window.location.href = "accueil.html";
+}
+
+</script>
+</body>
+</html>
